@@ -1,0 +1,127 @@
+#!/usr/bin/env python3
+
+from __future__ import print_function
+
+import os
+import sys
+import json
+import logging
+import argparse
+
+from shutil import which
+from subprocess import Popen, PIPE
+
+
+_log = logging.getLogger(__name__)
+
+
+def shell(statement):
+    "Run a simple shell shell, returning whether the command completed successfully."
+    _log.debug("Running command: '%s'", statement)
+    p = Popen(statement, shell=True, stdout=PIPE, stderr=PIPE)
+    stdout, stderr = p.communicate()
+    return (p.returncode, stdout.decode("utf-8"), stderr.decode("utf-8")) 
+
+
+def exit(statement, code):
+    "Write an error to stderr then exit with code"
+    sys.stderr.write(statement)
+    sys.stderr.write("\n")
+    sys.stderr.flush()
+    sys.exit(code)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Creates a viewer shortcut object on DNAnexus platform " \
+                                                 "using the dx-toolkit.")
+    parser.add_argument("-v", "--viewer", help="Name of the viewer in DNAnexus", required=True)
+    parser.add_argument("-f", "--files", nargs="+", help="Files to include in the shortcut", required=True)
+    parser.add_argument("-o", "--output", help="Name of bookmark output object", required=True)
+    parser.add_argument("-p", "--project", help="Project to work within (default: the selected project in dx-toolkit).")
+    parser.add_argument("--no-select", help="Don't select the project (usually if we are in a DNAnexus app, this is needed.)",
+                        default=False, action="store_true")
+    parser.add_argument("--verbose", help="Verbosity for debugging", default=False, action="store_true")
+    args = parser.parse_args()
+    _log.debug("Project: %s", args.project)
+    _log.debug("Viewer: %s", args.viewer)
+    _log.debug("Files: %s", args.files)
+    _log.debug("Output: %s", args.output)
+
+    if args.verbose:
+        logging.basicConfig(level=logging.DEBUG, format="[LOG] %(message)s")
+
+    (returncode, _, _) = shell("which dx")
+    if returncode != 0:
+        exit("dx-toolkit not on PATH!", 1)
+    _log.debug("dx-toolkit located.")
+    
+    if not args.no_select and args.project:
+        (returncode, _, _) = shell("dx select '%s'" % (args.project))
+        if returncode != 0:
+            exit("Could not select project: %s!" % (args.project), 2)
+        _log.debug("Selected project %s.", args.project)
+
+    # get project id
+    if not 'project-' in args.project:
+        (returncode, stdout, stderr) = shell("dx env| grep 'project-' |cut -f2")
+        if returncode != 0:
+            exit("Could not retrieve project id!", 3)
+
+        project_id = stdout.strip()
+    else:
+        project_id = args.project
+    _log.debug("Project ID: %s", project_id)
+
+    # get viewer id
+    (returncode, stdout, stderr) = shell("dx ls --brief '%s'" % (args.viewer))
+    if returncode != 0:
+        exit("Invalid fileviewer: %s" % (args.viewer), 4)
+
+    viewer_id = stdout.strip()
+    _log.debug("Viewer ID: %s", viewer_id)
+
+    # get file ids
+    file_ids = []
+    for _file in args.files:
+        if not 'file-' in _file:
+            (returncode, stdout, stderr) = shell("dx ls --brief '%s'" % (_file))
+            if returncode != 0:
+                exit("Invalid file: %s" % (_file), 5)
+            
+            this_file_id = stdout.strip()
+        else:
+            this_file_id = _file
+
+        _log.debug("File ID for '%s': %s", _file, viewer_id)
+        this_entry = (project_id + ":" + this_file_id).strip()
+        file_ids.append(this_entry)
+
+    mapper = {
+        "preselectedIDs" : file_ids,
+        "fileViewer": {
+            "project": project_id,
+            "id": viewer_id
+        }
+    }
+
+    mapper_json_str = json.dumps(mapper)
+    _log.debug("JSON object: {}".format(mapper_json_str))
+
+    # create a new record object
+    (returncode, stdout, stderr) = shell("dx new record '%s' " \
+              "--details '%s' " \
+              "--type ViewerShortcut " \
+              "--type SJCloudVisualization " \
+              "--brief " \
+              "--close" % (args.output, mapper_json_str))
+
+    if returncode != 0:
+        exit("Could not create record object with name '%s'! " % (args.output), 6)
+    _log.debug("Created record object.")
+
+    record_id = stdout.strip()
+    _log.debug("Record ID: %s", record_id)
+    print(record_id)
+
+
+# vim: ft=python:

@@ -1,0 +1,60 @@
+{
+    "openSource": false,
+    "developers": ["user-clmcleod"],
+    "authorizedUsers": [
+        "user-clmcleod",
+    "user-snewman",
+    "user-appdpdnanexus_stjude.org",
+    "user-appdddnanexus_stjude.org",
+    "org-stjude_cloud_app_runners",
+    "org-stjude_cloud"
+        ],
+    "regionalOptions": {
+        "aws:us-east-1": {
+            "systemRequirements": {"*": {"instanceType": "mem2_ssd1_x2"}}
+        },
+        "azure:westus": {
+            "systemRequirements": {"*": {"instanceType": "azure:mem2_ssd1_x2"}}
+        }
+    },
+    "billTo": "org-stjude_cloud",
+    "runSpec": {
+        "distribution": "Ubuntu",
+        "interpreter": "bash",
+        "release": "14.04",
+        "file": "src/code.sh"
+    },
+    "name": "stjude_build_visualizer",
+    "title": "Build Visualizer (St. Jude)",
+    "summary": "Create a bookmark from a given viewer",
+    "details": {
+        "contactEmail": "clay.mcleod@stjude.org"
+    },
+    "dxapi": "1.0.0",
+    "version": "1.1.1",
+    "inputSpec": [
+    {
+        "class": "array:file",
+        "label": "Array of files to bundle",
+        "name": "files_to_view"
+    },
+    {
+        "class": "file",
+        "label": "Viewer File",
+        "name": "viewer_file"
+    },
+    {
+        "class": "string",
+        "label": "Name of the output bookmark",
+        "name": "output_name",
+        "default": "New Bookmark"
+    }
+    ],
+        "outputSpec": [
+        {
+            "name": "bookmark_record",
+            "class": "record",
+            "label": "Viewer Object"
+        }
+    ]
+}
