@@ -21,7 +21,8 @@
     "runSpec": {
         "distribution": "Ubuntu",
         "interpreter": "bash",
-        "release": "14.04",
+        "release": "20.04",
+        "version": "0",
         "file": "src/code.sh"
     },
     "name": "stjude_build_visualizer",
